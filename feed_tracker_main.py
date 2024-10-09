@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 import requests
 import utility
 import rss_parser
@@ -6,6 +7,11 @@ import mongo_db_connections
 import email_notification
 import details
 
+def get_categories():
+    """Get the categories and keywords we want to ignore from datasheet"""
+    
+    data = pd.read_excel("Datasheet.xlsx",sheet_name="Categories",engine='openpyxl')
+    return data["Categories_to_avoid"].tolist()
 
 def main():
     db_mongodb = mongo_db_connections.connect_to_mongodb(details.mongo_uri, details.mongo_database)
@@ -24,9 +30,11 @@ def main():
             title = entry.get('title', 'No Title')
             summary = entry.get('summary', '')
             link = entry.get('link', '')
+            
+            categories_to_ignore = get_categories()
 
-            match_found = (utility.contains_fuzzy_match(title, details.keywords, details.threshold) or
-                           utility.contains_fuzzy_match(summary, details.keywords, details.threshold))
+            match_found = (utility.contains_fuzzy_match(title, categories_to_ignore, 80) or
+                           utility.contains_fuzzy_match(summary, categories_to_ignore, 80))
 
             if not mongo_db_connections.entry_exists_mongodb(db_mongodb, feed_info['collection'], entry):  # Check if the entry does not exist in MongoDB
                 attachment_data = None
