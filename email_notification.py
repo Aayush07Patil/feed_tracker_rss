@@ -14,7 +14,7 @@ def get_recipients():
     data = pd.read_excel("Datasheet.xlsx",sheet_name="Email_Recipients",engine='openpyxl')
     return data["Email"].tolist()
 
-def categories_to_ignore():
+def get_categories():
     """Get the categories and keywords we want to ignore from datasheet"""
     
     data = pd.read_excel("Datasheet.xlsx",sheet_name="Categories",engine='openpyxl')
@@ -96,12 +96,12 @@ def send_all_updates(entry, feed_name, entry_data, is_xml, attachment_data=None,
             logging.info("Not Equity")
             return
     
-    categories_to_ignore = categories_to_ignore()
+    categories_to_ignore = get_categories()
     
     if feed_name == "NSE_Corporate_Actions":
         category_match_found = utility.contains_fuzzy_match(entry_data['Purpose'], categories_to_ignore, 80)
 
-        if category_match_found:
+        if not category_match_found:
             subject = f"{entry.get('title','')} | Purpose:{entry_data["Purpose"]}"
             body = f"\n\nStock: {entry.get('title','')}\nFace Value: {entry_data["Face value"]}\nRecord Date: {entry_data["Record date"]}\nBook Closure Start Date: {entry_data["Book closure start date"]}\nBook Closure End Date: {entry_data["Book closure end date"]}"
             logging.info(f"New Update for {entry.get('title','')}")
@@ -118,7 +118,7 @@ def send_all_updates(entry, feed_name, entry_data, is_xml, attachment_data=None,
     elif feed_name == "NSE_Board_Meetings":
         category_match_found = utility.contains_fuzzy_match(entry_data['Purpose'], categories_to_ignore, 80)
 
-        if category_match_found:
+        if not category_match_found:
             subject = f"{entry.get('title','')} | Purpose: {entry_data["Purpose"]} | Meeting Date:{entry_data["Meeting date"]}"
             body = f"\n\nStock: {entry.get('title','')}\nPurpose: {entry_data["Purpose"]}\nMeeting Date:{entry_data["Meeting date"]}"
             logging.info(f"New Update for {entry.get('title','')}")
@@ -129,7 +129,7 @@ def send_all_updates(entry, feed_name, entry_data, is_xml, attachment_data=None,
     elif feed_name == "NSE_Company_Announcements":
         category_match_found = utility.contains_fuzzy_match(entry_data['Category'], categories_to_ignore, 80) or utility.contains_fuzzy_match(entry_data["Summary"], categories_to_ignore, 80)
 
-        if category_match_found:
+        if not category_match_found:
             subject = f"{entry.get('title','')} | Summary: {entry_data["Summary"]}"
             body = f"\n\nStock: {entry.get('title','')}\nCategory: {entry_data["Category"]}\nSummary: {entry_data["Summary"]}"
             logging.info(f"New Update for {entry.get('title','')}")
