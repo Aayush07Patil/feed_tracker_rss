@@ -35,45 +35,47 @@ def main():
 
             match_found = (utility.contains_fuzzy_match(title, categories_to_ignore, 80) or
                            utility.contains_fuzzy_match(summary, categories_to_ignore, 80))
+            
+            if not match_found:
 
-            if not mongo_db_connections.entry_exists_mongodb(db_mongodb, feed_info['collection'], entry):  # Check if the entry does not exist in MongoDB
-                attachment_data = None
-                attachment_filename = None
-                file_extension = None
-                is_xml = False
+                if not mongo_db_connections.entry_exists_mongodb(db_mongodb, feed_info['collection'], entry):  # Check if the entry does not exist in MongoDB
+                    attachment_data = None
+                    attachment_filename = None
+                    file_extension = None
+                    is_xml = False
 
-                if feed_info['collection'] != "NSE_Corporate_Actions" and link:
-                    
-                    try:
-                        response = requests.get(link, stream=True, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-                        if response.status_code == 200:
-                            attachment_data = response.content
+                    if feed_info['collection'] != "NSE_Corporate_Actions" and link:
+                        
+                        try:
+                            response = requests.get(link, stream=True, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+                            if response.status_code == 200:
+                                attachment_data = response.content
 
-                            if link.endswith('.pdf'):
-                                attachment_filename = title + ".pdf"
-                                file_extension = "pdf"
-                            elif link.endswith('.xml'):
-                                attachment_filename = title + ".xml"
-                                file_extension = "xml"
-                                is_xml = True 
+                                if link.endswith('.pdf'):
+                                    attachment_filename = title + ".pdf"
+                                    file_extension = "pdf"
+                                elif link.endswith('.xml'):
+                                    attachment_filename = title + ".xml"
+                                    file_extension = "xml"
+                                    is_xml = True 
+                                else:
+                                    utility.logging.warning(f"Unsupported file format for {link}")
+                                    attachment_data = None
+                                    attachment_filename = None
+                                    file_extension = None
+
+                                utility.logging.info(f"Downloaded {feed_info['collection']} attachment from {link}")
                             else:
-                                utility.logging.warning(f"Unsupported file format for {link}")
+                                utility.logging.error(f"Failed to download attachment after retries. URL: {link}")
                                 attachment_data = None
                                 attachment_filename = None
-                                file_extension = None
+                        except requests.exceptions.RequestException as e:
+                            utility.logging.error(f"Exception occurred while downloading file: {e}. URL: {link}")
 
-                            utility.logging.info(f"Downloaded {feed_info['collection']} attachment from {link}")
-                        else:
-                            utility.logging.error(f"Failed to download attachment after retries. URL: {link}")
-                            attachment_data = None
-                            attachment_filename = None
-                    except requests.exceptions.RequestException as e:
-                        utility.logging.error(f"Exception occurred while downloading file: {e}. URL: {link}")
-
-                # Insert into the appropriate MongoDB collection
-                entry_data = mongo_db_connections.insert_entry_mongodb(db_mongodb, feed_info['collection'], entry, attachment_data, file_extension)
-                # Send an email update if the entry is about a tracked stock
-                email_notification.send_all_updates(entry, feed_info['collection'], entry_data, is_xml, attachment_data, attachment_filename, not match_found)
+                    # Insert into the appropriate MongoDB collection
+                    entry_data = mongo_db_connections.insert_entry_mongodb(db_mongodb, feed_info['collection'], entry, attachment_data, file_extension)
+                    # Send an email update if the entry is about a tracked stock
+                    email_notification.send_all_updates(entry, feed_info['collection'], entry_data, is_xml, attachment_data, attachment_filename, not match_found)
 
     utility.logging.info('RSS feed entries have been inserted into MongoDB.')
 
